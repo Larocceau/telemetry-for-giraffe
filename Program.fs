@@ -9,6 +9,7 @@ open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
+open OpenTelemetry.Metrics
 
 // ---------------------------------
 // Models
@@ -80,9 +81,19 @@ let configureApp (app: IApplicationBuilder) =
      | false -> app.UseGiraffeErrorHandler(errorHandler).UseHttpsRedirection())
         .UseCors(configureCors)
         .UseStaticFiles()
+        .UseOpenTelemetryPrometheusScrapingEndpoint()
         .UseGiraffe(webApp)
 
 let configureServices (services: IServiceCollection) =
+    services
+        .AddOpenTelemetry()
+        .WithMetrics(fun (builder: OpenTelemetry.Metrics.MeterProviderBuilder) ->
+            builder
+                .AddPrometheusExporter()
+                .AddMeter("Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Server.Kestrel")
+            |> ignore)
+    |> ignore
+
     services.AddCors() |> ignore
     services.AddGiraffe() |> ignore
 
